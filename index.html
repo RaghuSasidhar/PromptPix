@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PromptPix</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            borderRadius: {
+              '2xl': '1.25rem',
+            },
+            colors: {
+              background: '#0C0F1A',
+              surface: '#151922',
+              primary: '#E4E6EB',
+              secondary: '#9BA3AE',
+              accent: '#CBA135',
+              'accent-secondary': '#3C6E71',
+              'highlight-hover': '#3C6E71',
+              highlight: '#A67C52',
+            },
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+            },
+            boxShadow: {
+              'glow-accent': '0 0 20px 0 rgba(203, 161, 53, 0.4)',
+              'panel': '0 10px 30px -15px rgba(0, 0, 0, 0.3)',
+            }
+          },
+        },
+      };
+    </script>
+    <script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.24.0"
+  }
+}
+</script>
+  <style>
+    body {
+      position: relative;
+    }
+    body::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: radial-gradient(circle at 10% 20%, rgba(60, 110, 113, 0.1), transparent 50%),
+                  radial-gradient(circle at 90% 80%, rgba(203, 161, 53, 0.08), transparent 50%);
+      animation: gradient-animation 25s ease-in-out infinite;
+      z-index: -1;
+      pointer-events: none;
+    }
+    @keyframes gradient-animation {
+      0% { transform: translate(0, 0) scale(1); }
+      25% { transform: translate(5vw, -5vh) scale(1.1); }
+      50% { transform: translate(-5vw, 5vh) scale(1); }
+      75% { transform: translate(0, 5vh) scale(1.1); }
+      100% { transform: translate(0, 0) scale(1); }
+    }
+  </style>
+</head>
+  <body class="bg-background font-sans">
+    <div id="root"></div>
+  </body>
+</html>

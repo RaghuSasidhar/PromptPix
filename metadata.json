@@ -1,0 +1,5 @@
+{
+  "name": "PromptPix",
+  "description": "An AI assistant that analyzes an uploaded image and generates a detailed, creative prompt for AI image generators like DALL·E, MidJourney, or Stable Diffusion.",
+  "requestFramePermissions": []
+}
