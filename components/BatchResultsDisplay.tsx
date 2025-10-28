@@ -6,9 +6,10 @@ import { exportPrompt } from '../utils/exportUtils';
 
 interface BatchResultsDisplayProps {
   results: BatchResult[];
+  onGenerateBatchImage: (id: string) => void;
 }
 
-export const BatchResultsDisplay: React.FC<BatchResultsDisplayProps> = ({ results }) => {
+export const BatchResultsDisplay: React.FC<BatchResultsDisplayProps> = ({ results, onGenerateBatchImage }) => {
 
   const completedCount = results.filter(r => !r.isLoading).length;
   const totalCount = results.length;
@@ -55,7 +56,7 @@ export const BatchResultsDisplay: React.FC<BatchResultsDisplayProps> = ({ result
         <div className="flex-grow bg-surface/50 rounded-2xl p-4 overflow-y-auto shadow-inner">
             <div className="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-4">
                 {results.map((result) => (
-                    <BatchResultCard key={result.id} result={result} />
+                    <BatchResultCard key={result.id} result={result} onGenerateImage={onGenerateBatchImage} />
                 ))}
             </div>
         </div>

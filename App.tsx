@@ -33,12 +33,15 @@ export interface BatchResult {
     prompt: string;
     isLoading: boolean;
     error: string | null;
+    isGeneratingImage: boolean;
+    generatedImageUrl: string | null;
+    imageError: string | null;
 }
 
 export interface BatchHistoryItem {
   id: string;
   timestamp: string;
-  results: Omit<BatchResult, 'isLoading' | 'error'>[];
+  results: Omit<BatchResult, 'isLoading' | 'error' | 'isGeneratingImage' | 'imageError'>[];
 }
 
 type AppMode = 'image-to-prompt' | 'text-to-image' | 'batch';
@@ -233,34 +236,44 @@ const App: React.FC = () => {
                 prompt: '',
                 isLoading: true,
                 error: null,
+                isGeneratingImage: false,
+                generatedImageUrl: null,
+                imageError: null,
             }))
         );
         setBatchResults(initialResults);
 
-        let completedCount = 0;
-        files.forEach(async ({ base64, mimeType }, index) => {
+        const promises = files.map(async ({ base64, mimeType }) => {
             try {
                 const allStyles = [...PRIMARY_STYLES.filter(s => s !== 'None'), ...SECONDARY_STYLES];
                 const randomStyle = allStyles[Math.floor(Math.random() * allStyles.length)];
                 const generated = await generateImagePrompt(base64, mimeType, randomStyle);
-                setBatchResults(prev => prev.map((item, i) => i === index ? { ...item, prompt: generated, isLoading: false } : item));
+                return { prompt: generated, error: null };
             } catch (e: any) {
-                setBatchResults(prev => prev.map((item, i) => i === index ? { ...item, error: e.message || 'Failed to generate prompt', isLoading: false } : item));
-            } finally {
-                completedCount++;
-                if (completedCount === files.length) {
-                    setBatchResults(currentResults => {
-                        const newBatchHistoryItem: BatchHistoryItem = {
-                            id: `batch-${Date.now()}`,
-                            timestamp: new Date().toISOString(),
-                            results: currentResults.map(({ id, dataUrl, prompt }) => ({ id, dataUrl, prompt })),
-                        };
-                        setBatchHistory(prev => [newBatchHistoryItem, ...prev]);
-                        return currentResults;
-                    });
-                }
+                return { prompt: '', error: e.message || 'Failed to generate prompt' };
             }
         });
+
+        const settledResults = await Promise.all(promises);
+
+        let finalResults: BatchResult[] = [];
+        setBatchResults(prev => {
+            const updatedResults = prev.map((item, index) => ({
+                ...item,
+                prompt: settledResults[index].prompt,
+                error: settledResults[index].error,
+                isLoading: false,
+            }));
+            finalResults = updatedResults;
+            return updatedResults;
+        });
+
+        const newBatchHistoryItem: BatchHistoryItem = {
+            id: `batch-${Date.now()}`,
+            timestamp: new Date().toISOString(),
+            results: finalResults.map(({ id, dataUrl, prompt, generatedImageUrl }) => ({ id, dataUrl, prompt, generatedImageUrl })),
+        };
+        setBatchHistory(prev => [newBatchHistoryItem, ...prev]);
     }
   }, [appMode, resetAllStates]);
 
@@ -302,6 +315,20 @@ const App: React.FC = () => {
       setIsGeneratingImage(false);
     }
   }, [prompt, textInput, style, sourceImage, rating, appMode]);
+  
+  const handleGenerateBatchImage = useCallback(async (resultId: string) => {
+    const resultToUpdate = batchResults.find(r => r.id === resultId);
+    if (!resultToUpdate || !resultToUpdate.prompt) return;
+
+    setBatchResults(prev => prev.map(r => r.id === resultId ? { ...r, isGeneratingImage: true, imageError: null } : r));
+
+    try {
+        const imageUrl = await generateImage(resultToUpdate.prompt);
+        setBatchResults(prev => prev.map(r => r.id === resultId ? { ...r, generatedImageUrl: imageUrl, isGeneratingImage: false } : r));
+    } catch (e: any) {
+        setBatchResults(prev => prev.map(r => r.id === resultId ? { ...r, imageError: e.message || 'Failed to generate image', isGeneratingImage: false } : r));
+    }
+  }, [batchResults]);
 
   const handleRefine = async (level: 'concise' | 'descriptive') => {
     const currentPrompt = appMode === 'text-to-image' ? textInput : prompt;
@@ -343,7 +370,13 @@ const App: React.FC = () => {
 
   const handleBatchHistorySelect = (item: BatchHistoryItem) => {
     handleModeChange('batch');
-    setBatchResults(item.results.map(r => ({ ...r, isLoading: false, error: null })));
+    setBatchResults(item.results.map(r => ({ 
+        ...r, 
+        isLoading: false, 
+        error: null,
+        isGeneratingImage: false,
+        imageError: null,
+    })));
   }
 
   const handleDeleteHistory = (id: string, type: 'single' | 'batch') => {
@@ -354,25 +387,22 @@ const App: React.FC = () => {
     }
   }
   
-  const activePromptForAnalysis = useMemo(() => {
-    if (workflowStep !== 'review') return '';
-    if (appMode === 'image-to-prompt') return prompt;
-    if (appMode === 'text-to-image') return debouncedTextInput;
-    return '';
-  }, [appMode, prompt, debouncedTextInput, workflowStep]);
-
   useEffect(() => {
-    const promptToAnalyze = appMode === 'text-to-image' ? textInput : prompt;
+    const promptToAnalyze = appMode === 'text-to-image' ? debouncedTextInput : prompt;
+
     if (workflowStep === 'review' && promptToAnalyze && !isLoadingPrompt) {
-      setIsRating(true);
-      ratePrompt(promptToAnalyze)
-        .then(setRating)
-        .catch(err => { console.error("Rating failed:", err); setRating(null); })
-        .finally(() => setIsRating(false));
-    } else {
+        setIsRating(true);
+        ratePrompt(promptToAnalyze)
+          .then(setRating)
+          .catch(err => {
+            console.error("Rating failed:", err);
+            setRating(null);
+          })
+          .finally(() => setIsRating(false));
+    } else if (!promptToAnalyze) {
         setRating(null);
     }
-  }, [prompt, textInput, appMode, workflowStep, isLoadingPrompt]);
+  }, [prompt, debouncedTextInput, appMode, workflowStep, isLoadingPrompt]);
   
   const AppNavigator = () => (
     <div className="w-full bg-surface/50 backdrop-blur-sm border-b border-accent-secondary/30 shadow-panel">
@@ -434,7 +464,7 @@ const App: React.FC = () => {
                 </div>
                 <div className="bg-surface border-l border-accent-secondary/30 flex flex-col p-8 overflow-hidden">
                     <h2 className="text-xl font-bold text-primary mb-4 flex-shrink-0">2️⃣ See Your Output</h2>
-                    <BatchResultsDisplay results={batchResults} />
+                    <BatchResultsDisplay results={batchResults} onGenerateBatchImage={handleGenerateBatchImage} />
                 </div>
             </div>
         );

@@ -1,13 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-const getApiKey = (): string => {
-    const apiKey = process.env.API_KEY;
-    if (!apiKey) {
-      throw new Error("Missing Gemini API Key in environment variables.");
-    }
-    return apiKey;
-};
-
 const BASE_PROMPT_INSTRUCTION = `You are an AI assistant that converts images into detailed prompts for AI image generators like DALL·E, MidJourney, or Stable Diffusion. Do NOT output normal descriptive sentences. Instead, create a creative, structured prompt that captures: Objects and subjects in the image, scene and background details, lighting and mood, artistic style (e.g., realistic, cartoon, anime, cyberpunk), colors and textures, and any other visually relevant details. Format the output as a single prompt string ready to paste into an AI image generator. Avoid vague descriptions. Be imaginative and precise. Example: "A futuristic cityscape at sunset, neon lights reflecting on wet streets, cyberpunk style, high detail, dramatic lighting, cinematic perspective, 8K resolution".`;
 
 const getStyleInstruction = (style: string): string => {
@@ -19,7 +11,7 @@ const getStyleInstruction = (style: string): string => {
 
 export const generateImagePrompt = async (base64Image: string, mimeType: string, style: string): Promise<string> => {
   try {
-    const ai = new GoogleGenAI({ apiKey: getApiKey() });
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const modelName = 'gemini-2.5-flash';
     const finalInstruction = `${BASE_PROMPT_INSTRUCTION}${getStyleInstruction(style)} Now, analyze the uploaded image and generate a similar high-quality AI image prompt.`;
 
@@ -46,7 +38,7 @@ export const generateImagePrompt = async (base64Image: string, mimeType: string,
 
 export const generateImage = async (prompt: string): Promise<string> => {
     try {
-      const ai = new GoogleGenAI({ apiKey: getApiKey() });
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const response = await ai.models.generateImages({
           model: 'imagen-4.0-generate-001',
           prompt: prompt,
@@ -72,7 +64,7 @@ export const generateImage = async (prompt: string): Promise<string> => {
 
 export const ratePrompt = async (prompt: string): Promise<{ score: number; feedback: string }> => {
     try {
-        const ai = new GoogleGenAI({ apiKey: getApiKey() });
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-pro',
             contents: `Please analyze this AI image prompt: "${prompt}"`,
@@ -103,13 +95,13 @@ export const ratePrompt = async (prompt: string): Promise<{ score: number; feedb
 
 export const refinePrompt = async (prompt: string, level: 'concise' | 'descriptive'): Promise<string> => {
     try {
-        const ai = new GoogleGenAI({ apiKey: getApiKey() });
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const systemInstruction = level === 'concise'
             ? "You are an AI assistant specializing in text summarization. Your task is to make the following AI image prompt more concise while retaining its core essence. Remove verbose phrasing and redundant details. Do not add new concepts. Output only the refined prompt."
             : "You are an AI assistant specializing in text expansion. Your task is to enrich the following AI image prompt by adding more vivid details, sensory language, and evocative descriptions. Expand on the existing concepts without introducing entirely new subjects. Output only the refined prompt.";
         
         const response = await ai.models.generateContent({
-            model: 'gemini-flash-latest',
+            model: 'gemini-2.5-flash',
             contents: prompt,
             config: { systemInstruction },
         });
